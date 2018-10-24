@@ -43,7 +43,8 @@ async def index(request):
     ]
     return {
         '__template__': 'blogs.html',
-        'blogs': blogs
+        'blogs': blogs,
+        '__user__': request.__user__
     }
 
 
@@ -125,13 +126,78 @@ async def api_register_user(*, email, name, passwd):
 """
 
 
+#day10   part2 signin
+#显示登录页面
+@get('/signin')
+def signin():
+    return {
+        '__template__': 'signin.html'
+    }
+
+#从request cookie中拿到的cookie_str是这种类似格式的，这个格式其实是我们通过user2cookie()函数生成以后传给浏览器客户端的
+#001540366298304cc1f45e7f9634d0fb3a0d81d78945882000-1540452698-d42395f5ea4bd626a80ab56dfd96c98834774eec
+async def cookie2user(cookie_str):
+    '''
+    Parse cookie and load user if cookie is valid.
+    '''
+    if not cookie_str:
+        return None
+    try:
+        L = cookie_str.split('-')  #拆分字符串(D)
+        if len(L) != 3:
+            return None
+        uid, expires, sha1 = L
+        if float(expires) < time.time():  #查看是否过期,这里廖大用的是int，但是字符串用int的时候，只能全是数字，不能含小数点
+            return None
+        user = await User.find(uid)
+        if user is None:
+            return None
+        s = '%s-%s-%s-%s' % (uid, user.passwd, expires, _COOKIE_KEY)
+        if sha1 != hashlib.sha1(s.encode('utf-8')).hexdigest():
+            logging.info('Invalid sha1')
+            return None
+        user.passwd = '******'
+        return user
+    except Exception as e:
+        logging.exception(e)
+        return None
 
 
+#验证登录信息
+@post('/api/authenticate')
+async def authenticate(*,email,passwd):
+    if not email:
+        raise APIValueError('email')
+    if not passwd:
+        raise APIValueError('passwd')
+    users = await User.findAll(where='email=?',args=[email])
+    if len(users) == 0:
+        raise APIValueError('email','Email not exist.')
+    user = users[0]#此时finall得出来的数值是一个仅含一个dict的list,就是sql语句返回什么类型的数据自己忘了
+    #把登录密码转化格式并进行摘要算法
+    sha1 = hashlib.sha1()
+    sha1.update(user.id.encode('utf-8'))
+    sha1.update(b':')
+    sha1.update(passwd.encode('utf-8'))
+    if sha1.hexdigest() != user.passwd:#与数据库密码比较
+        raise APIValueError('password','Invaild password')
+    #制作cookie发送给浏览器，这步骤与注册用户一样
+    r = web.Response()
+    r.set_cookie(COOKIE_NAME, user2cookie(user,86400), max_age=86400, httponly=True)
+    user.passwd = "******"
+    r.content_type = 'application/json'
+    r.body = json.dumps(user, ensure_ascii = False).encode('utf-8')
+    return r
 
 
-
-
-
+#signout回到index界面
+@get('/signout')
+def signout(request):
+    referer = request.headers.get('Referer')
+    r = web.HTTPFound(referer or '/')
+    r.set_cookie(COOKIE_NAME, '-deleted-', max_age=0, httponly=True)
+    logging.info('user signed out')
+    return r
 
 
 

@@ -54,7 +54,7 @@ from jinja2 import Environment, FileSystemLoader
 
 import orm
 from coroweb import add_routes, add_static
-
+from handlers import cookie2user, COOKIE_NAME
 
 '''
 在app.py中加入middleware、jinja2模板和自注册的支持：
@@ -154,6 +154,22 @@ async def response_factory(app, handler):
     return response
 
 
+
+#提取并解析cookie并绑定在request对象上
+async def auth_factory(app,handler):
+    async def auth(request):
+        logging.info('check user: %s %s' % (request.method, request.path))
+        request.__user__ = None #初始化
+        cookie_str = request.cookies.get(COOKIE_NAME) #读取cookie
+        if cookie_str:
+            user = await cookie2user(cookie_str)
+            if user:
+                logging.info('set current user: %s' % user.email)
+                request.__user__ = user
+        return await handler(request)
+    return auth
+
+
 '''
 Blog的创建日期显示的是一个浮点数，因为它是由这段模板渲染出来的：
 <p class="uk-article-meta">发表于{{ blog.created_at }}</p>
@@ -178,7 +194,7 @@ def datetime_filter(t):
 
 async def init(loop):
     await orm.create_pool(loop=loop, host='127.0.0.1', port=3306, user='www-data', password='www-data', db='awesome')
-    app = web.Application(loop=loop, middlewares=[logger_factory, response_factory])
+    app = web.Application(loop=loop, middlewares=[logger_factory, auth_factory, response_factory])
     init_jinja2(app, filters=dict(datetime=datetime_filter))
     add_routes(app, 'handlers') #将’handlers‘模块中的URL处理函数注册到app路由中
     add_static(app)
