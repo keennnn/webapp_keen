@@ -110,6 +110,7 @@ def has_request_arg(fn):
             raise ValueError('request parameter must be the last named parameter in function: %s%s' % (fn.__name__, str(sig)))
     return found
 
+#定义RequestHandler,正式向request参数获取URL处理函数所需的参数
 class RequestHandler(object):
     ' 请求处理器，用来封装处理函数 '
     def __init__(self, app, fn):
@@ -132,13 +133,13 @@ class RequestHandler(object):
             if request.method == 'POST':
                 # 无正文类型信息时返回
                 if not request.content_type:
-                    return web.HTTPBadRequest('Missing Content-Type.')
+                    return web.HTTPBadRequest(text='Missing Content-Type.') #这里被廖大坑了，要有text
                 ct = request.content_type.lower()
                 # 处理JSON类型的数据，传入参数字典中
                 if ct.startswith('application/json'):
-                    params = await request.json()
+                    params = await request.json()   #Read request body decoded as json.
                     if not isinstance(params, dict):
-                        return web.HTTPBadRequest('JSON body must be object.')
+                        return web.HTTPBadRequest(text='JSON body must be object.')
                     kw = params
                 # 处理表单类型的数据，传入参数字典中
                 elif ct.startswith('application/x-www-form-urlencoded') or ct.startswith('multipart/form-data'):
@@ -146,7 +147,7 @@ class RequestHandler(object):
                     kw = dict(**params)
                 # 暂不支持处理其他正文类型的数据
                 else:
-                    return web.HTTPBadRequest('Unsupported Content-Type: %s' % request.content_type)
+                    return web.HTTPBadRequest(text='Unsupported Content-Type: %s' % request.content_type)
             # GET请求预处理
             if request.method == 'GET':
                 #在World Wide Web上, query string是Uniform Resource Locator (URL)的一部分, 其中包含着需要传给web application的数据.
@@ -163,6 +164,7 @@ class RequestHandler(object):
                 if qs:
                     kw = dict()
                     for k, v in parse.parse_qs(qs, True).items():
+                        #Parse a query string given as a string argument.Data are returned as a dictionary. The dictionary keys are the unique query variable names and the values are lists of values for each name.
                         # parse a query string, data are returned as a dict. the dict keys are the unique query variable names and the values are lists of values for each name
                         # a True value indicates that blanks should be retained as blank strings
                         kw[k] = v[0]
@@ -171,27 +173,29 @@ class RequestHandler(object):
             # Read-only property with AbstractMatchInfo instance for result of route resolving
         else:
             # 参数字典收集请求参数
+            # #当函数参数没有关键字参数时，移去request除命名关键字参数所有的参数信息
             if not self._has_var_kw_arg and self._named_kw_args:
                 #remove all unamed kw:
                 copy = dict()
                 for name in self._named_kw_args:
                     if name in kw:
                         copy[name] = kw[name]
-                    kw = copy
+                kw = copy
             #check named arg:
             for k, v in request.match_info.items():
                 if k in kw:
                     logging.warning('Duplicate arg name in named args and kw args: %s' % k)
-                kw[k] = v
+                kw[k] = v                                
+                
         if self._has_request_arg:
             kw['request'] = request
-            
         #check required kw # 收集无默认值的关键字参数
+        ##假如命名关键字参数(没有附加默认值)，request没有提供相应的数值，报错
         if self._required_kw_args:
             for name in self._required_kw_args:
                 if not name in kw:
                     # 当存在关键字参数未被赋值时返回，例如 一般的账号注册时，没填入密码就提交注册申请时，提示密码未输入
-                    return web.HTTPBadRequest('Missing argument: %s' % name)
+                    return web.HTTPBadRequest(text='Missing argument: %s' % name)
         logging.info('Call with args: %s' % str(kw))
         try:
             # 最后调用URL处理函数，并传入请求参数，进行请求处理
@@ -225,8 +229,7 @@ def add_route(app, fn):
     logging.info('add route %s %s => %s(%s)' % (method, path, fn.__name__, ','.join(inspect.signature(fn).parameters.keys())))
     #这句话就是这个函数的重点，app其实是调用aiohttp生成的，这句话就是将URL处理函数注册到app.router.add_route()
     #我的理解其实是将URL函数与具体的app关联起来的
-    app.router.add_route(method, path, RequestHandler(app, fn))
-
+    app.router.add_route(method, path, RequestHandler(app, fn))  #别忘了RequestHandler的参数有两个
 
 
 #如果多次调用add_route()函数将handlers中的URL处理函数都注册到app.router.add_route()， 会显得很麻烦
@@ -251,10 +254,10 @@ def add_routes(app, module_name):
             method = getattr(fn, '__method__', None)  #查看fn函数是否有__method__属性，如果没有的话就返回None
             path = getattr(fn, '__route__', None)
             if method and path:
+                #这里要查询path以及method是否存在而不是等待add_route函数查询，因为那里错误就要报错了
                 # 对已经修饰过的URL处理函数注册到web服务的路由中
                 add_route(app, fn)
             
-
 
 
 

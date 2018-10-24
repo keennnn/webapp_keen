@@ -12,8 +12,9 @@ import aiomysql
 
 logging.basicConfig(level=logging.INFO)
 
-def log(sql, args=()):
-    logging.info('SQL: %s' % sql)
+def log(sql, args):
+    true_sql = sql.replace('?', '%s') % tuple(args)
+    logging.info('SQL: %s' % true_sql)
 
 
 #create connection pool for aiomysql
@@ -198,14 +199,18 @@ class ModelMetaclass(type):
 class Model(dict, metaclass=ModelMetaclass):
     def __init__(self, **kw):
         super(Model, self).__init__(**kw)
-        
+    
+
+    #__get__attr()和__setattr__()其实是为了实现如下功能的：
+    #加入存在user['passwd'] = passwd123, 正常的dict只能通过user['passwd'] = passwd456的方式来修改value值，
+    #但是重新定义这两个方法以后，就可以通过user.passwd = 'xxxx'来修改访问key对应的value值
     def __getattr__(self, key):
         try:
             return self[key]
         except KeyError:
             raise AttributeError(r"'Model' object has no attribute '%s'"% key)
 
-    def __setattr(self, key, value):
+    def __setattr__(self, key, value):
         self[key] = value
         
     def getValue(self, key):
@@ -233,7 +238,7 @@ class Model(dict, metaclass=ModelMetaclass):
             args = []
         orderBy = kw.get('orderBy', None)
         if orderBy:
-            sql.append('orderby')
+            sql.append('order by')
             sql.append(orderBy)
             limit = kw.get('limit', None)
             if limit is not None:
