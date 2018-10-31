@@ -208,6 +208,7 @@ def check_admin(request):
     if request.__user__ is None or not request.__user__.admin:
         raise APIPermissionError()
 
+#day12_page
 def get_page_index(page_str):
     p = 1
     try:
@@ -267,12 +268,25 @@ async def api_create_blog(request, *, name, summary, content):
     await blog.save()
     return blog
 
+#day12_page
+@get('/manage/blogs')
+def manage_blogs(*, page='1'):
+    return {
+        '__template__': 'manage_blogs.html',
+        'page_index': get_page_index(page)
+    }
 
-
-
-
-
-
+#day12_page
+#从数据库中读取blogs内容发送给manage_blogs.html的VUE MVVM框架
+@get('/api/blogs')
+async def api_blogs(*, page='1'):
+    page_index = get_page_index(page)
+    num = await Blog.findNumber('count(id)')
+    p = Page(num, page_index)
+    if num == 0:
+        return dict(page=p, blogs=())
+    blogs = await Blog.findAll(orderBy='created_at desc', limit=(p.offset, p.limit))
+    return dict(page=p, blogs=blogs)
 
 
 

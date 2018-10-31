@@ -13,8 +13,11 @@ import aiomysql
 logging.basicConfig(level=logging.INFO)
 
 def log(sql, args):
-    true_sql = sql.replace('?', '%s') % tuple(args)
-    logging.info('SQL: %s' % true_sql)
+    if args==None:
+        logging.info('SQL: %s' % sql)
+    else:
+        true_sql = sql.replace('?', '%s') % tuple(args)
+        logging.info('SQL: %s' % true_sql)
 
 
 #create connection pool for aiomysql
@@ -259,6 +262,8 @@ class Model(dict, metaclass=ModelMetaclass):
     async def findNumber(cls, selectField, where=None, args=None):
         ' find number by select and where. '
         sql = ['select %s _num_ from `%s`' % (selectField, cls.__table__)]
+        print('KEEN  SQL', str(sql))
+        print('keen  args', args)
         if where:
             sql.append('where')
             sql.append(where)
