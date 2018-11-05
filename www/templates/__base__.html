@@ -1,5 +1,21 @@
 <!DOCTYPE html>
-
+<!--
+{% macro pagination(url, page) %}
+    <ul class="uk-pagination">
+        {% if page.has_previous %}
+            <li><a href="{{ url }}{{ page.page_index - 1 }}"><i class="uk-icon-angle-double-left"></i></a></li>
+        {% else %}
+            <li class="uk-disabled"><span><i class="uk-icon-angle-double-left"></i></span></li>
+        {% endif %}
+            <li class="uk-active"><span>{{ page.page_index }}</span></li>
+        {% if page.has_next %}
+            <li><a href="{{ url }}{{ page.page_index + 1 }}"><i class="uk-icon-angle-double-right"></i></a></li>
+        {% else %}
+            <li class="uk-disabled"><span><i class="uk-icon-angle-double-right"></i></span></li>
+        {% endif %}
+    </ul>
+{% endmacro %}
+-->
 <html>
 <head>
     <meta charset="utf-8" />
@@ -32,7 +48,7 @@
                         <a href="#0"><i class="uk-icon-user"></i> {{ __user__.name }}</a>
                         <div class="uk-dropdown uk-dropdown-navbar">
                             <ul class="uk-nav uk-nav-navbar">
-							    {% if __user__.admin %}
+								{% if __user__.admin %}
 								<li><a href="/manage/blogs/create"><i class="uk-icon-edit"></i> 编辑日志</a></li>
 								{% endif %}
                                 <li><a href="/signout"><i class="uk-icon-sign-out"></i> 登出</a></li>

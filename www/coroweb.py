@@ -20,6 +20,15 @@ from aiohttp import web
 from apis import APIError
 
 
+'''将aiohttp框架进一步封装成更简明使用的web框架
+建立视图函数装饰器，用来存储、附带URL信息，这样子便可以直接通过装饰器，将函数映射成视图函数
+例：@get
+	def View(request):
+		return response
+	但此时函数View仍未能从request请求中提取相关的参数，
+	需自行定义一个处理request请求的类来封装，并把视图函数变为协程'''
+
+
 #通过装饰器函数把一个函数映射为一个URL处理函数
 #Define decorator @get('/path')
 def get(path):

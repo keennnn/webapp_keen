@@ -124,7 +124,7 @@ class FloatField(Field):
 
 class TextField(Field):
     def __init__(self, name=None, default=None):
-        super(TextField, self).__init__(name, 'text', False, default )
+        super(TextField, self).__init__(name, 'text', False, default)
 
 
 
@@ -250,6 +250,8 @@ class Model(dict, metaclass=ModelMetaclass):
                     sql.append('?')
                     args.append(limit)
                 elif isinstance(limit, tuple) and len(limit)==2:
+                    #两个参数的话，就代表这第一个参数是offset(如果没有默认是0)18代表是从19开始算起， 第二个参数10代表返回的最大行数
+                    #举例： sql语句是这样的： select * from table1 limit 18, 10；
                     sql.append('?, ?')
                     args.extend(limit)
                 else:
